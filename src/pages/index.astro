@@ -1,0 +1,133 @@
+---
+import Layout from "../layouts/Layout.astro";
+import Card from "../components/Card.astro";
+---
+
+<Layout title="Data Visualization projects">
+  <main class="grid place-items-center gap-2 h-full text-gray-50">
+    <div class="">
+      <h1 id="title">United States GDP</h1>
+      <div id="chart-container"></div>
+    </div>
+  </main>
+</Layout>
+
+<script>
+  import * as d3 from "https://cdn.jsdelivr.net/npm/d3@7/+esm";
+
+  const crearChart = (apiData) => {
+    // Transformar las fechas en objetos Date y valores en números
+    const data = apiData.map((d) => [new Date(d[0]), +d[1]]);
+
+    // Margenes
+    const margin = { top: 20, right: 20, bottom: 40, left: 40 };
+
+    // Tamaño del gráfico
+    const width = 800 - margin.left - margin.right;
+    const height = 400 - margin.top - margin.bottom;
+
+    // Escala para el eje x (tiempo en años)
+    const xScale = d3
+      .scaleBand()
+      .domain(data.map((d) => d[0]))
+      .range([0, width])
+      .padding(0.1);
+
+    // Escala para el eje y (cantidad de dinero)
+    const yScale = d3
+      .scaleLinear()
+      .domain([0, d3.max(data, (d) => d[1])])
+      .range([height, 0]);
+
+    // Crear el contenedor SVG del gráfico con márgenes
+    const svg = d3
+      .select("#chart-container")
+      .append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+      .append("g")
+      .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
+
+    // Tamaño de las barras
+    const barWidth = xScale.bandwidth();
+    const barHeight = (d) => height - yScale(d[1]);
+
+    // Crear barras para cada punto de datos
+    const bars = svg
+      .selectAll("rect")
+      .data(data)
+      .enter()
+      .append("rect")
+      .attr("x", (d) => xScale(d[0]))
+      .attr("y", (d) => yScale(d[1]))
+      .attr("width", barWidth)
+      .attr("height", barHeight)
+      .attr("class", "hover:fill-cyan-500")
+      .attr("fill", "steelblue")
+      .append("title")
+        .text(d=> d[1]+ "billion")
+      ;
+
+ // Agregar ejes x e y
+ const xAxis = d3.axisBottom(xScale)
+        .tickValues(xScale.domain().filter((d, i) => i % 10 === 0))
+        .tickFormat(d3.timeFormat('%Y'));
+
+    const yAxis = d3.axisLeft(yScale);
+
+    svg.append('g')
+        .attr('transform', 'translate(0,' + height + ')')
+        .call(xAxis)
+        .selectAll('text')
+        .attr('transform', 'rotate(-45)')
+        .style('text-anchor', 'end'); // Ajustar la orientación de las etiquetas
+
+    svg.append('g')
+        .call(yAxis);
+
+    // Agregar etiquetas de ejes
+    svg.append('text')
+        .attr('transform', 'translate(' + (width / 2) + ',' + (height + margin.top + 20) + ')')
+        .style('text-anchor', 'middle')
+        .style('fill', 'white')
+        .text('Años');
+
+    svg.append('text')
+        .attr('transform', 'rotate(-90)')
+        .attr('y', 50 - margin.left)
+        .attr('x', 0 - (height / 2))
+        .attr('dy', '1em')
+        .style('text-anchor', 'middle')
+        .style('fill', 'white')
+        .text('Dinero');
+  };
+
+  document.addEventListener("DOMContentLoaded", () => {
+    // URL de la API que deseas utilizar
+    const GDP_API =
+      "https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/GDP-data.json";
+
+    // Selecciona el contenedor donde se mostrarán los datos
+    const dataContainer = document.getElementById("container");
+
+    // Realiza la solicitud a la API utilizando fetch
+    fetch(GDP_API)
+      .then((response) => response.json())
+      .then((data) => {
+        // Manipula el DOM para mostrar los datos
+        // dataContainer.innerHTML = `<p>${data.nombre}</p><p>${data.descripcion}</p>`;
+        crearChart(data.data);
+      })
+      .catch((error) => {
+        console.error("Error al obtener datos desde la API", error);
+        dataContainer.innerHTML = "<p>Error al cargar los datos</p>";
+      });
+  });
+</script>
+
+<style>
+
+text{
+  fill: white;
+}
+</style>

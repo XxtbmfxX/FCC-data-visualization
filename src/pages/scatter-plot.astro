@@ -1,0 +1,95 @@
+---
+import Layout from "../layouts/Layout.astro";
+---
+
+
+<Layout title="Data Visualization projects">
+
+		<div id="container" >
+			<h1>red</h1>
+		
+		</div>
+</Layout>
+
+
+<script>
+
+import * as d3 from "d3";
+
+const API = "https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/cyclist-data.json"
+
+
+
+ // Datos de ejemplo, reemplaza con los datos de tu API
+
+
+  document.addEventListener("DOMContentLoaded", () => {
+    
+
+    fetch(API)
+      .then((response) => response.json())
+      .then((data) => {
+		crearScatterPlot(data)
+      })
+
+      .catch((error) =>
+        console.error("Error al obtener datos de la API:", error)
+      );
+  });
+
+
+
+
+  const crearScatterPlot = (data) => {
+
+
+  // Tamaño del lienzo
+  var width = 800;
+  var height = 500;
+
+  // Crear el lienzo SVG
+  var svg = d3.select("body")
+    .append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+  // Escalas para los ejes
+  var xScale = d3.scaleLinear()
+    .domain([d3.min(data, d => d.Year), d3.max(data, d => d.Year)])
+    .range([50, width - 50]);
+
+  var yScale = d3.scaleLinear()
+    .domain([d3.min(data, d => d.Seconds), d3.max(data, d => d.Seconds)])
+    .range([height - 50, 50]);
+
+  // Crear ejes
+  var xAxis = d3.axisBottom(xScale);
+  var yAxis = d3.axisLeft(yScale);
+
+  svg.append("g")
+    .attr("transform", "translate(0," + (height - 50) + ")")
+    .call(xAxis);
+
+  svg.append("g")
+    .attr("transform", "translate(50,0)")
+    .call(yAxis);
+
+  // Crear puntos de dispersión
+  svg.selectAll("circle")
+    .data(data)
+    .enter().append("circle")
+    .attr("cx", d => xScale(d.Year))
+    .attr("cy", d => yScale(d.Seconds))
+    .attr("r", 5) // Tamaño del círculo
+	.style("fill", "#ff7f0e"); // Color rojo
+
+}
+
+
+
+</script>
+
+
+<style>
+
+</style>
