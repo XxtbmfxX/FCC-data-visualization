@@ -2,34 +2,161 @@
 import Layout from "../layouts/Layout.astro";
 ---
 
-
-<Layout title="Data Visualization projects">
-
-		<div id="container" >
-			<h1>red</h1>
-		
-		</div>
+<Layout title="Scatter plot">
+  <main class="grid place-items-center gap-2 h-full text-gray-50">
+    <div class="">
+      <h1 id="title" class="text-center my-4 ">Doping in Professional Bicycle Racing
+      </h1>
+      <div id="chart-container" class="relative">
+        <div id="tooltip" class="tooltip" style="opacity: 0;"></div>
+      </div>
+    </div>
+  </main>
 </Layout>
 
-
 <script>
+  import * as d3 from "d3";
 
-import * as d3 from "d3";
+  const API =
+    "https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/cyclist-data.json";
 
-const API = "https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/cyclist-data.json"
+    interface PlotObject {
+  Doping: string;
+  Name: string;
+  Nationality: string;
+  Place: number;
+  Seconds: number;
+  Time: string;
+  URL: string;
+  Year: number;
+}
 
 
+  const createScatterPlot = (data:  PlotObject[]) => {
+   
+     // Configuración del gráfico
+  const margin = { top: 20, right: 20, bottom: 50, left: 50 };
+  const width = 800 - margin.left - margin.right;
+  const height = 500 - margin.top - margin.bottom;
 
- // Datos de ejemplo, reemplaza con los datos de tu API
+  // Escala para el eje x (años)
+  const xScale = d3
+    .scaleLinear()
+    .domain([d3.min(data, (d) => d.Year) - 1, d3.max(data, (d) => d.Year) + 1])
+    .range([0, width]);
+
+  // Escala para el eje y (segundos convertidos a minutos)
+const yScale = d3
+  .scaleLinear()
+  .domain([
+    d3.min(data, (d) => d.Seconds / 60) ,
+    d3.max(data, (d) => d.Seconds / 60) ,
+  ])
+  .range([height, 0]);
+
+  // Crear el contenedor SVG
+  const svg = d3
+    .select("#chart-container")
+    .append("svg")
+    .attr("width", width + margin.left + margin.right)
+    .attr("height", height + margin.top + margin.bottom)
+    .append("g")
+    .attr("transform", `translate(${margin.left}, ${margin.top})`);
+
+ // Agregar ejes
+svg.append("g")
+  .attr("transform", `translate(0, ${height})`)
+  .call(d3.axisBottom(xScale).ticks(5).tickFormat(d3.format("d")))
+  .append("text")
+  .attr("x", width / 2)
+  .attr("y", margin.bottom - 10)
+  .attr("text-anchor", "middle")
+  .text("Year");
+
+svg.append("g")
+  .call(d3.axisLeft(yScale))
+  .append("text")
+  .attr("transform", "rotate(-90)")
+  .attr("y", -margin.left + 10)
+  .attr("x", -height / 2)
+  .attr("text-anchor", "middle")
+  .text("Minutes");
+
+ // Crear los puntos (círculos) en el scatter plot
+svg.selectAll(".dot")
+  .data(data)
+  .enter()
+  .append("circle")
+  .attr("class", (d) => (d.Doping === "" ? "dot" : "dot doping"))
+  .attr("cx", (d) => xScale(d.Year))
+  .attr("cy", (d) => yScale(d.Seconds / 60))
+  .attr("r", 5) // Tamaño de los círculos
+  .on("mouseover", (event, d) => {
+    // Mostrar el tooltip al hacer hover sobre el círculo
+    tooltip.transition().duration(200).style("opacity", 0.9);
+    tooltip.html(
+      `<strong>${d.Name}</strong><br/>
+      Year: ${d.Year}<br/>
+      Time: ${d.Time}<br/>
+      Doping: ${d.Doping === "" ? "No" : "Yes"}`
+    )
+      .style("left", `${event.pageX - 300}px`)
+      .style("top", `${event.pageY - 300}px`)
+  })
+  .on("mouseout", () => {
+    // Ocultar el tooltip al dejar de hacer hover
+    tooltip.transition().duration(500).style("opacity", 0);
+  });
+
+// Crear el contenedor para el tooltip
+const tooltip = d3.select("#chart-container")
+  .append("div")
+  .attr("id", "tooltip")
+  .attr("class", "tooltip")
+  .style("opacity", 0);
+// Crear la leyenda
+const legend = svg.append("g")
+  .attr("class", "legend")
+  .attr("transform", `translate(${width + margin.right - 120}, 100)`);
+
+// Añadir rectángulo y texto para la leyenda de puntos sin doping
+legend.append("rect")
+  .attr("x", 0)
+  .attr("y", 0)
+  .attr("width", 20)
+  .attr("height", 20)
+  .style("fill", "blue");
+
+legend.append("text")
+  .attr("x", 30)
+  .attr("y", 10)
+  .attr("dy", "0.35em")
+  .style("text-anchor", "start")
+  .text("No Doping");
+
+// Añadir rectángulo y texto para la leyenda de puntos con doping
+legend.append("rect")
+  .attr("x", 0)
+  .attr("y", 30)
+  .attr("width", 20)
+  .attr("height", 20)
+  .style("fill", "orange");
+
+legend.append("text")
+  .attr("x", 30)
+  .attr("y", 40)
+  .attr("dy", "0.35em")
+  .style("text-anchor", "start")
+  .text("Doping");
+
+  }
 
 
   document.addEventListener("DOMContentLoaded", () => {
-    
-
     fetch(API)
       .then((response) => response.json())
       .then((data) => {
-		crearScatterPlot(data)
+        createScatterPlot(data)
       })
 
       .catch((error) =>
@@ -37,59 +164,32 @@ const API = "https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData
       );
   });
 
-
-
-
-  const crearScatterPlot = (data) => {
-
-
-  // Tamaño del lienzo
-  var width = 800;
-  var height = 500;
-
-  // Crear el lienzo SVG
-  var svg = d3.select("body")
-    .append("svg")
-    .attr("width", width)
-    .attr("height", height);
-
-  // Escalas para los ejes
-  var xScale = d3.scaleLinear()
-    .domain([d3.min(data, d => d.Year), d3.max(data, d => d.Year)])
-    .range([50, width - 50]);
-
-  var yScale = d3.scaleLinear()
-    .domain([d3.min(data, d => d.Seconds), d3.max(data, d => d.Seconds)])
-    .range([height - 50, 50]);
-
-  // Crear ejes
-  var xAxis = d3.axisBottom(xScale);
-  var yAxis = d3.axisLeft(yScale);
-
-  svg.append("g")
-    .attr("transform", "translate(0," + (height - 50) + ")")
-    .call(xAxis);
-
-  svg.append("g")
-    .attr("transform", "translate(50,0)")
-    .call(yAxis);
-
-  // Crear puntos de dispersión
-  svg.selectAll("circle")
-    .data(data)
-    .enter().append("circle")
-    .attr("cx", d => xScale(d.Year))
-    .attr("cy", d => yScale(d.Seconds))
-    .attr("r", 5) // Tamaño del círculo
-	.style("fill", "#ff7f0e"); // Color rojo
-
-}
-
-
-
+  
 </script>
 
+<style is:inline>
+   /* Agrega estilos según sea necesario */
+   .dot {
+      fill: blue;
+    }
 
-<style>
+    .dot.doping {
+      fill: orange;
+    }
+
+    .tooltip {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+      width: 200px;
+      background-color: black;
+      padding: 10px;
+      border-radius: 20px;
+    }
+
+    text{
+      fill: white;
+    }
 
 </style>
+

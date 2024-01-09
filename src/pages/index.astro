@@ -1,13 +1,14 @@
 ---
 import Layout from "../layouts/Layout.astro";
-import Card from "../components/Card.astro";
 ---
 
-<Layout title="Data Visualization projects">
-  <main class="grid place-items-center gap-2 h-full text-gray-50">
+<Layout title="Bar Char">
+  <main  class="grid place-items-center gap-2 h-full text-gray-50">
     <div class="">
-      <h1 id="title">United States GDP</h1>
-      <div id="chart-container"></div>
+      <h1 id="title" class="text-center">United States GDP</h1>
+      <div id="chart-container" class="relative">
+        <div id="tooltip" class="tooltip" style="opacity: 0;"></div>
+      </div>
     </div>
   </main>
 </Layout>
@@ -45,6 +46,7 @@ import Card from "../components/Card.astro";
       .append("svg")
       .attr("width", width + margin.left + margin.right)
       .attr("height", height + margin.top + margin.bottom)
+
       .append("g")
       .attr("transform", "translate(" + margin.left + "," + margin.top + ")");
 
@@ -53,6 +55,8 @@ import Card from "../components/Card.astro";
     const barHeight = (d) => height - yScale(d[1]);
 
     // Crear barras para cada punto de datos
+    const tooltip = d3.select("#tooltip");
+
     const bars = svg
       .selectAll("rect")
       .data(data)
@@ -62,44 +66,68 @@ import Card from "../components/Card.astro";
       .attr("y", (d) => yScale(d[1]))
       .attr("width", barWidth)
       .attr("height", barHeight)
-      .attr("class", "hover:fill-cyan-500")
+      .attr("class", "bar hover:fill-cyan-500")
       .attr("fill", "steelblue")
-      .append("title")
-        .text(d=> d[1]+ "billion")
-      ;
+      .attr("data-date", (d) => d[0])
+      .attr("data-gdp", (d) => d[1])
+      .on("mouseover", handleMouseOver)
+      .on("mouseout", handleMouseOut);
 
- // Agregar ejes x e y
- const xAxis = d3.axisBottom(xScale)
-        .tickValues(xScale.domain().filter((d, i) => i % 10 === 0))
-        .tickFormat(d3.timeFormat('%Y'));
+    function handleMouseOver(e, i) {
+      // Mostrar tooltip
+      tooltip.transition().duration(200).style("opacity", 0.9);
+      tooltip.attr("data-date", i[0] )
+
+      // Establecer contenido del tooltip
+      tooltip
+      .html(`<strong>${d3.timeFormat("%Y Q%m")(i[0])}</strong><br/>${i[1]} billion`);
+        
+    }
+
+    function handleMouseOut(d, i) {
+      // Ocultar tooltip
+      tooltip.transition().duration(200).style("opacity", 0);
+    }
+
+    // Agregar ejes x e y
+    const xAxis = d3
+      .axisBottom(xScale)
+      .tickValues(xScale.domain().filter((d, i) => i % 10 === 0))
+      .tickFormat(d3.timeFormat("%Y"));
 
     const yAxis = d3.axisLeft(yScale);
 
-    svg.append('g')
-        .attr('transform', 'translate(0,' + height + ')')
-        .call(xAxis)
-        .selectAll('text')
-        .attr('transform', 'rotate(-45)')
-        .style('text-anchor', 'end'); // Ajustar la orientación de las etiquetas
+    svg
+      .append("g")
+      .attr("transform", "translate(0," + height + ")")
+      .attr("id", "x-axis")
+      .call(xAxis)
+      .selectAll("text")
+      .attr("transform", "rotate(-45)")
+      .style("text-anchor", "end"); // Ajustar la orientación de las etiquetas
 
-    svg.append('g')
-        .call(yAxis);
+    svg.append("g").attr("id", "y-axis").call(yAxis);
 
     // Agregar etiquetas de ejes
-    svg.append('text')
-        .attr('transform', 'translate(' + (width / 2) + ',' + (height + margin.top + 20) + ')')
-        .style('text-anchor', 'middle')
-        .style('fill', 'white')
-        .text('Años');
+    svg
+      .append("text")
+      .attr(
+        "transform",
+        "translate(" + width / 2 + "," + (height + margin.top + 20) + ")"
+      )
+      .style("text-anchor", "middle")
+      .style("fill", "white")
+      .text("Años");
 
-    svg.append('text')
-        .attr('transform', 'rotate(-90)')
-        .attr('y', 50 - margin.left)
-        .attr('x', 0 - (height / 2))
-        .attr('dy', '1em')
-        .style('text-anchor', 'middle')
-        .style('fill', 'white')
-        .text('Dinero');
+    svg
+      .append("text")
+      .attr("transform", "rotate(-90)")
+      .attr("y", 50 - margin.left)
+      .attr("x", 0 - height / 2)
+      .attr("dy", "1em")
+      .style("text-anchor", "middle")
+      .style("fill", "white")
+      .text("Dinero");
   };
 
   document.addEventListener("DOMContentLoaded", () => {
@@ -126,8 +154,21 @@ import Card from "../components/Card.astro";
 </script>
 
 <style>
+  text {
+    fill: white;
+  }
 
-text{
-  fill: white;
-}
+  .tooltip {
+    position: absolute;
+    left: 50%;
+    top: 20px;
+    background-color: #050202;
+    border: 1px solid #ccc;
+    padding: 10px;
+    border-radius: 5px;
+    pointer-events: none;
+    font-size: 14px;
+    opacity: 0;
+    transition: opacity 0.3s;
+  }
 </style>

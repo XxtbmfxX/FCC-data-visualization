@@ -4,6 +4,53 @@ import Card from '../components/Card.astro';
 ---
 
 <Layout title="Data Visualization projects">
+	
 	<h1 class="text-white" >Ola heat map</h1>
+	<div id="container">
+
+
 </Layout>
 
+
+<script>
+
+import * as d3 from "d3";
+
+	 // Datos ficticios para el heatmap
+	 const data = [
+    [10, 20, 30, 40],
+    [25, 15, 35, 45],
+    [15, 30, 25, 50],
+    [35, 40, 20, 10]
+  ];
+
+  // Dimensiones del heatmap
+  const width = 400;
+  const height = 200;
+
+  // Escala de colores para asignar a los valores
+  const colorScale = d3.scaleSequential(d3.interpolateViridis)
+    .domain([d3.min(data, row => d3.min(row)), d3.max(data, row => d3.max(row))]);
+
+  // Crear el contenedor SVG
+  const svg = d3.select("#container").append("svg")
+    .attr("width", width)
+    .attr("height", height);
+
+  // Crear rectángulos para el heatmap
+  svg.selectAll("rect")
+    .data(data, (d, i) => i)
+    .enter().append("rect")
+      .attr("x", (d, i) => i * (width / data[0].length))
+      .attr("y", (d, i) => i * (height / data.length))
+      .attr("width", width / data[0].length)
+      .attr("height", height / data.length)
+      .style("fill", d => colorScale(d));
+</script>
+
+<style is:inline >
+    /* Estilos para el heatmap */
+    rect {
+      stroke: #fff;
+    }
+  </style>

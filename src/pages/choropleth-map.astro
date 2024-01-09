@@ -4,6 +4,55 @@ import Card from '../components/Card.astro';
 ---
 
 <Layout title="Data Visualization projects">
-	<h1 class="text-white" >Ola choroplet map</h1>
+	<h1 class="text-white" >Ola choroplet map, ver tutorial </h1>
+	<div id="container">
+
 </Layout>
 
+<script>
+
+import * as d3 from "d3";
+
+	 // Datos ficticios para el Choropleth Map (pueden representar valores asociados a regiones geográficas)
+	 const data = {
+    "USA": 30,
+    "Canada": 20,
+    "Mexico": 15,
+    // Agrega más datos según tus necesidades
+  };
+
+  // Crear el contenedor SVG
+  const svg = d3.select("#container").append("svg")
+    .attr("width", 800)
+    .attr("height", 500);
+
+  // Cargar el archivo geoJSON del mundo (o de una región específica)
+  d3.json("world.geojson").then((world) => {
+    // Proyección para convertir coordenadas geográficas en coordenadas SVG
+    const projection = d3.geoMercator()
+      .fitSize([800, 500], world);
+
+    // Escala de colores para asignar a los valores
+    const colorScale = d3.scaleSequential(d3.interpolateBlues)
+      .domain([0, d3.max(Object.values(data))]);
+
+    // Agregar paths para cada país en el geoJSON
+    svg.selectAll("path")
+      .data(world.features)
+      .enter().append("path")
+        .attr("d", d3.geoPath().projection(projection))
+        .style("fill", d => colorScale(data[d.properties.name] || 0))
+        .on("mouseover", (event, d) => {
+          // Mostrar información adicional en el mouseover
+          console.log(`Country: ${d.properties.name}, Value: ${data[d.properties.name] || 0}`);
+        });
+  });
+</script>
+
+<style is:inline >
+	  path {
+      fill: #ccc;
+      stroke: #fff;
+      stroke-width: 1;
+    }
+</style>
