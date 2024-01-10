@@ -1,56 +1,162 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import Card from '../components/Card.astro';
+import Layout from "../layouts/Layout.astro";
+import Card from "../components/Card.astro";
 ---
 
 <Layout title="Data Visualization projects">
-	
-	<h1 class="text-white" >Ola heat map</h1>
-	<div id="container">
-
-
+  <div class="grid items-center justify-center gap-4 mt-10">
+    <h1 class="text-white">Monthly Global Land-Surface Temperature</h1>
+    <div id="container"></div>
+    <div id="tooltip" class="tooltip" style="opacity: 0;"></div>
+  </div>
 </Layout>
 
-
 <script>
+  import * as d3 from "d3";
+  const API =
+    "https://raw.githubusercontent.com/freeCodeCamp/ProjectReferenceData/master/global-temperature.json";
 
-import * as d3 from "d3";
+  // Interfaz para la estructura de datos
+  interface MonthlyVariance {
+    year: number;
+    month: number;
+    variance: number;
+  }
 
-	 // Datos ficticios para el heatmap
-	 const data = [
-    [10, 20, 30, 40],
-    [25, 15, 35, 45],
-    [15, 30, 25, 50],
-    [35, 40, 20, 10]
-  ];
+  interface ApiData {
+    baseTemperature: number;
+    monthlyVariance: MonthlyVariance[];
+  }
 
-  // Dimensiones del heatmap
-  const width = 400;
-  const height = 200;
+  const createHeatMap = (apiData: ApiData) => {
+    // Configuración del heatmap
+    const margin = { top: 20, right: 20, bottom: 50, left: 50 };
+    const width = 800 - margin.left - margin.right;
+    const height = 500 - margin.top - margin.bottom;
 
-  // Escala de colores para asignar a los valores
-  const colorScale = d3.scaleSequential(d3.interpolateViridis)
-    .domain([d3.min(data, row => d3.min(row)), d3.max(data, row => d3.max(row))]);
+    const svg = d3
+      .select("#container")
+      .append("svg")
+      .attr("width", width + margin.left + margin.right)
+      .attr("height", height + margin.top + margin.bottom)
+      .append("g")
+      .attr("transform", `translate(${margin.left},${margin.top})`);
 
-  // Crear el contenedor SVG
-  const svg = d3.select("#container").append("svg")
-    .attr("width", width)
-    .attr("height", height);
+    // Escala para el eje x (años)
+    const xScale = d3
+      .scaleLinear()
+      .domain([
+        d3.min(apiData.monthlyVariance, (d) => d.year),
+        d3.max(apiData.monthlyVariance, (d) => d.year),
+      ])
+      .range([0, width]);
 
-  // Crear rectángulos para el heatmap
-  svg.selectAll("rect")
-    .data(data, (d, i) => i)
-    .enter().append("rect")
-      .attr("x", (d, i) => i * (width / data[0].length))
-      .attr("y", (d, i) => i * (height / data.length))
-      .attr("width", width / data[0].length)
-      .attr("height", height / data.length)
-      .style("fill", d => colorScale(d));
+    // Escala para el eje y (meses)
+    const yScale = d3
+      .scaleBand()
+      .domain(d3.range(1, 13))
+      .range([height, 0])
+      .padding(0.1);
+
+    // Escala de colores
+    const colorScale = d3
+      .scaleSequential(d3.interpolateRdYlBu)
+      .domain([
+        apiData.baseTemperature +
+          d3.min(apiData.monthlyVariance, (d) => d.variance),
+        apiData.baseTemperature +
+          d3.max(apiData.monthlyVariance, (d) => d.variance),
+      ]);
+
+    // Crear rects para el heatmap
+    svg
+      .selectAll("rect")
+      .data(apiData.monthlyVariance)
+      .enter()
+      .append("rect")
+      .attr("x", (d) => xScale(d.year))
+      .attr("y", (d) => yScale(d.month))
+      .attr(
+        "width",
+        width /
+          (d3.max(apiData.monthlyVariance, (d) => d.year) -
+            d3.min(apiData.monthlyVariance, (d) => d.year) +
+            1)
+      )
+      .attr("height", yScale.bandwidth())
+      .style("fill", (d) => colorScale(apiData.baseTemperature + d.variance))
+      .on("mouseover", (event, d) => {
+        // Mostrar el borde negro y el tooltip
+        d3.select(event.target)
+          .style("stroke", "#000")
+          .style("stroke-width", 2);
+
+        const tooltip = d3.select("#tooltip");
+        tooltip.transition().duration(200).style("opacity", 0.9);
+        tooltip
+          .html(
+            `<strong>Año:</strong> ${d.year}<br><strong>Mes:</strong> ${
+              d.month
+            }<br><strong>Variación:</strong> ${d.variance.toFixed(
+              2
+            )}<br><strong>Temperatura:</strong> ${(
+              apiData.baseTemperature + d.variance
+            ).toFixed(2)}`
+          )
+          .style("left", event.pageX + 10 + "px")
+          .style("top", event.pageY - 28 + "px");
+      })
+      .on("mouseout", (event, d) => {
+        // Ocultar el borde negro y el tooltip
+        d3.select(event.target).style("stroke", "none");
+
+        d3.select("#tooltip").transition().duration(500).style("opacity", 0);
+      });
+
+    // Agregar ejes
+    svg
+      .append("g")
+      .attr("transform", `translate(0,${height})`)
+      .call(d3.axisBottom(xScale).tickFormat(d3.format("d")));
+
+    svg.append("g").call(
+      d3.axisLeft(yScale).tickFormat((d) => {
+        const months = [
+          "",
+          "Ene",
+          "Feb",
+          "Mar",
+          "Abr",
+          "May",
+          "Jun",
+          "Jul",
+          "Ago",
+          "Sep",
+          "Oct",
+          "Nov",
+          "Dic",
+        ];
+        return months[d];
+      })
+    );
+  };
+
+  document.addEventListener("DOMContentLoaded", () => {
+    fetch(API)
+      .then((response) => response.json())
+      .then((data) => {
+        createHeatMap(data);
+      })
+
+      .catch((error) =>
+        console.error("Error al obtener datos de la API:", error)
+      );
+  });
 </script>
 
-<style is:inline >
-    /* Estilos para el heatmap */
-    rect {
-      stroke: #fff;
-    }
-  </style>
+<style is:inline>
+  rect:hover {
+    stroke: #000;
+    stroke-width: 2;
+  }
+</style>
