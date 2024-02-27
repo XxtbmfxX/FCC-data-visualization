@@ -1,58 +1,188 @@
 ---
-import Layout from '../layouts/Layout.astro';
-import Card from '../components/Card.astro';
+import Layout from "../layouts/Layout.astro";
+import Title from "../components/Title.astro";
 ---
 
 <Layout title="Data Visualization projects">
-	<h1 class="text-white" >Ola choroplet map, ver tutorial </h1>
-	<div id="container">
+  <Title title="United States Educational Attainment" />
 
+  <div id="tooltip"></div>
+  <div class="realtive flex flex-row justify-center mt-10 ">
+    <div id="container"></div>
+  </div>
 </Layout>
 
 <script>
+  import * as d3 from "d3";
 
-import * as d3 from "d3";
+  import * as topojson from "topojson";
 
-	 // Datos ficticios para el Choropleth Map (pueden representar valores asociados a regiones geográficas)
-	 const data = {
-    "USA": 30,
-    "Canada": 20,
-    "Mexico": 15,
-    // Agrega más datos según tus necesidades
-  };
+  const width = 960;
+  const height = 600;
 
-  // Crear el contenedor SVG
-  const svg = d3.select("#container").append("svg")
-    .attr("width", 800)
-    .attr("height", 500);
+  const svg = d3
+    .select("#container")
+    .append("svg")
+    .attr("width", width)
+    .attr("height", height);
 
-  // Cargar el archivo geoJSON del mundo (o de una región específica)
-  d3.json("world.geojson").then((world) => {
-    // Proyección para convertir coordenadas geográficas en coordenadas SVG
-    const projection = d3.geoMercator()
-      .fitSize([800, 500], world);
+  // Cargar datos del mapa
+  d3.json(
+    "https://cdn.freecodecamp.org/testable-projects-fcc/data/choropleth_map/counties.json"
+  )
+    .then(function (mapData) {
+      // Cargar datos adicionales
+      d3.json(
+        "https://cdn.freecodecamp.org/testable-projects-fcc/data/choropleth_map/for_user_education.json"
+      )
+        .then(function (educationData) {
+          // Unir datos con el mapa utilizando el identificador único (fips)
+          const mergedData = mapData.objects.counties.geometries.map(
+            (geometry) => {
+              const educationInfo = educationData.find(
+                (data) => data.fips === geometry.id
+              );
+              return { ...geometry, educationInfo };
+            }
+          );
 
-    // Escala de colores para asignar a los valores
-    const colorScale = d3.scaleSequential(d3.interpolateBlues)
-      .domain([0, d3.max(Object.values(data))]);
+          // Crear una escala de color para mapear los valores de educación a colores
+          const colorScale = d3
+            .scaleSequential(d3.interpolateBlues)
+            .domain([0, d3.max(educationData, (d) => d.bachelorsOrHigher)]);
 
-    // Agregar paths para cada país en el geoJSON
-    svg.selectAll("path")
-      .data(world.features)
-      .enter().append("path")
-        .attr("d", d3.geoPath().projection(projection))
-        .style("fill", d => colorScale(data[d.properties.name] || 0))
-        .on("mouseover", (event, d) => {
-          // Mostrar información adicional en el mouseover
-          console.log(`Country: ${d.properties.name}, Value: ${data[d.properties.name] || 0}`);
+          // Crear una leyenda
+          const legend = svg
+            .append("g")
+            .attr("class", "legend")
+            .attr("transform", "translate(300, 0)");
+
+          // Crear la escala de colores para la leyenda
+          const legendScale = d3
+            .scaleLinear()
+            .domain([0, d3.max(educationData, (d) => d.bachelorsOrHigher)])
+            .range([0, 200]); // Ajusta el rango de acuerdo a tu diseño
+
+          // Crear los rectángulos de la leyenda
+          legend
+            .selectAll("rect")
+            .data(d3.range(0, 201, 20)) // Puedes ajustar esto según tus necesidades
+            .enter()
+            .append("rect")
+            .attr("width", 20)
+            .attr("height", 10)
+            .attr("x", (d) => legendScale(d))
+            .attr("y", 0)
+            .style("fill", (d) => colorScale(d));
+
+          // Agregar etiquetas a la leyenda
+          legend
+            .selectAll("text")
+            .data(d3.range(0, 201, 20))
+            .enter()
+            .append("text")
+            .attr("x", (d) => legendScale(d) + 10)
+            .attr("y", 25)
+            .attr("dy", ".35em")
+            .style("text-anchor", "middle")
+            .text((d) => d + "%");
+
+          // Crear un objeto GeoPath para convertir datos geoespaciales en rutas SVG
+          const path = d3.geoPath();
+
+          // Asignar los datos geoespaciales a los elementos de la selección SVG
+          svg
+            .selectAll("path")
+            .data(topojson.feature(mapData, mapData.objects.counties).features)
+            .enter()
+            .append("path")
+            .attr("d", path)
+            .style("fill", (d) =>
+              colorScale(
+                mergedData.find((data) => data.id === d.id).educationInfo
+                  .bachelorsOrHigher
+              )
+            )
+            .style("stroke", "white")
+            .on("mouseover", function (event, d) {
+              const educationInfo = mergedData.find(
+                (data) => data.id === d.id
+              ).educationInfo;
+
+              // Cambiar el color al hacer hover
+              d3.select(this).style("fill", "white");
+
+              //Cambiar tooltip
+              d3.select("#tooltip")
+                .transition()
+                .duration(200)
+                .style("opacity", 1);
+
+              d3.select("#tooltip")
+                .html(
+                  `<strong>${educationInfo.area_name}</strong><br>Bachelors or Higher: ${educationInfo.bachelorsOrHigher}%`
+                )
+                .style("left", event.pageX + 10 + "px")
+                .style("top", event.pageY - 28 + "px");
+            })
+
+            .on("mouseout", function (event, d) {
+              // Restaurar el color al salir del hover
+              d3.select(this).style("fill", (d) =>
+                colorScale(
+                  mergedData.find((data) => data.id === d.id).educationInfo
+                    .bachelorsOrHigher
+                )
+              );
+              d3.select("#tooltip")
+                .transition()
+                .duration(500)
+                .style("opacity", 0);
+            });
+
+          // Agregar cualquier otra interactividad o elementos que desees
+          // ...
+        })
+        .catch(function (error) {
+          console.error("Error al cargar los datos de educación:", error);
         });
-  });
+    })
+    .catch(function (error) {
+      console.error("Error al cargar los datos del mapa:", error);
+    });
 </script>
 
-<style is:inline >
-	  path {
-      fill: #ccc;
-      stroke: #fff;
-      stroke-width: 1;
-    }
+<style is:inline>
+  path {
+    fill: #5c76bd;
+    stroke: #fff;
+    stroke-width: 1;
+  }
+
+  line {
+    stroke: #f11919;
+    stroke-width: 0.5;
+  }
+
+  #tooltip {
+    position: absolute;
+    background-color: rgb(169, 206, 253);
+    border: 1px solid #ccc;
+    border-radius: 20px;
+    padding: 10px;
+    min-height: 100px;
+    width: 200px;
+    opacity: 0;
+  }
+
+  .legend {
+    font-size: 12px;
+    font-family: Arial, sans-serif;
+  }
+
+  .legend rect {
+    fill: none;
+    stroke: #ccc;
+    stroke-width: 1;
+  }
 </style>

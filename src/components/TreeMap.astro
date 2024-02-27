@@ -1,0 +1,78 @@
+<div class="container"></div>
+<div id="legend" class="flex h-20 w-80 gap-20"></div>
+
+<script>
+  import * as d3 from "d3";
+
+
+  // Dimensiones del gráfico
+  const width = 1000;
+  const height = 800;
+
+  // Obtener los datos de la API
+  d3.json(
+    "https://cdn.freecodecamp.org/testable-projects-fcc/data/tree_map/kickstarter-funding-data.json"
+  )
+    .then((data) => {
+      const color = d3.scaleOrdinal(
+        data.children.map((d) => d.name),
+        d3.schemeTableau10
+      );
+
+      const root = d3.hierarchy(data);
+      // Construct the treemap layout.
+      const treemap = d3.treemap();
+      treemap.size([width, height]);
+      treemap.padding(2);
+
+      // Sum and sort the data.
+      root.sum((d) => d.value);
+      root.sort((a, b) => b.height - a.height || b.value - a.value);
+
+      // Compute the treemap layout.
+      treemap(root);
+
+  // Create the SVG container.
+  const svg = d3.select(".container").append("svg")
+      .attr("viewBox", [0, 0, width, height])
+      .attr("width", width)
+      .attr("height", height)
+      .attr("style", "max-width: 100%; height: auto; font: 10px sans-serif;");
+
+  // Add a cell for each leaf of the hierarchy.
+  const leaf = svg.selectAll("g")
+    .data(root.leaves())
+    .join("g")
+      .attr("transform", d => `translate(${d.x0},${d.y0})`);
+
+  // Append a tooltip.
+  const format = d3.format(",d");
+  leaf.append("title")
+      .text(d => `${d.ancestors().reverse().map(d => d.data.name).join(".")}\n${format(d.value)}`);
+
+  // Append a color rectangle. 
+  leaf.append("rect")
+      .attr("id", d => d.value)
+      .attr("fill", d => { while (d.depth > 1) d = d.parent; return color(d.data.name); })
+      .attr("fill-opacity", 0.6)
+      
+      .attr("width", d => d.x1 - d.x0)
+      .attr("height", d => d.y1 - d.y0);
+
+      //Agregar texto que nose tenga overflow
+ 
+
+    })
+    .catch(function (error) {
+      console.log("Error al cargar los datos:", error);
+    });
+</script>
+
+<style>
+  #legend text {
+    background: #000;
+    color: red;
+    position: absolute;
+    bottom: 0;
+  }
+</style>
